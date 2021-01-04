@@ -96,4 +96,6 @@ def main(numeric=False):
       merge_keys(numeric=numeric)
 
 if __name__ == '__main__':
+  try: input = raw_input
+  except NameError: pass
   main(numeric=False)
