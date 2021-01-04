@@ -4,7 +4,7 @@ import os  # only for urandom()
 BYTES = int(256 / 8)  # 256: 24 words, 128: 12 words
 
 def rand(bytes=BYTES):
-  return os.urandom(bytes)
+  return bytearray(os.urandom(bytes))
 
 def xor(key1, key2):
   return bytearray([k1 ^ k2 for k1, k2 in zip(key1, key2)])
