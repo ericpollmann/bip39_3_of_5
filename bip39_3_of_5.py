@@ -14,11 +14,22 @@ def raw_to_indices(key):
   binary = ''.join([bin(b)[2:].rjust(8, '0') for b in key+checksum])
   return [int(binary[i*11:i*11+11], 2) for i in range(int(len(binary) / 11))]
 
+def raw_to_int(key):
+  binary = ''.join([bin(b)[2:].rjust(8, '0') for b in key])
+  return int(binary, 2)
+
 def indices_to_raw(indices, bytes=BYTES):
   binary = ''.join([bin(i)[2:].rjust(11, '0') for i in indices])
   assert len(binary) == int((bytes*8+8)/11)*11, 'Unexpected key length'
   raw_key = bytearray([int(binary[i*8:i*8+8], 2) for i in range(bytes)])
   assert raw_to_indices(raw_key) == indices, 'Invalid Checksum'
+  return raw_key
+
+def int_to_raw(int_key, bytes=BYTES):
+  binary = bin(int_key)[2:].rjust(int(bytes*8), '0')
+  assert len(binary) == int(bytes*8), 'Unexpected key length'
+  raw_key = bytearray([int(binary[i*8:i*8+8], 2) for i in range(bytes)])
+  assert raw_to_int(raw_key) == int_key, 'Invalid Checksum'
   return raw_key
 
 def words(indices):
@@ -31,18 +42,28 @@ def indices(words):
     wrds = [w[:4] for w in wordfile.read().splitlines()]
     return [wrds.index(w[:4]) for w in words]
 
-def print_keys(names, keys, numeric=True):
+def print_keys(names, keys, style):
   for name, key in zip(names, keys):
-    mnemonic = raw_to_indices(key) if numeric else words(raw_to_indices(key))
-    print('%s: %s' % (name, ' '.join([str(i) for i in mnemonic])))
+    if style == 'int':
+      mnemonic = str(raw_to_int(key))
+    elif style == 'indices':
+      mnemonic = ' '.join([str(i) for i in raw_to_indices(key)])
+    else:  # words
+      mnemonic = ' '.join(words(raw_to_indices(key)))
+    print('%s: %s' % (name, mnemonic))
 
-def merge_keys(numeric=True, key=[0]*32):
+def merge_keys(style, key=[0]*32):
   try:
     for n in range(3):
-      part = input('%s> ' % ['a or x', 'b or y', 'c or z'][n]).strip().split()
-      part = [int(i) for i in part] if numeric else indices(part)
-      key = xor(key, indices_to_raw(part))
-    print_keys(['real'], [key], numeric=numeric)
+      part = input('%s> ' % ['a or x', 'b or y', 'c or z'][n]).strip()
+      if style == 'int':
+        part = int_to_raw(int(part))
+      elif style == 'indices':
+        part = indices_to_raw([int(i) for i in part.split()])
+      else:  # words
+        part = indices_to_raw(indices(part.split()))
+      key = xor(key, part)
+    print_keys(['real'], [key], style=style)
   except Exception as e:
     print(e)
 
@@ -84,18 +105,18 @@ def manual(bytes=BYTES):  # Danger Will Robinson
           except:
             pass
 
-def main(numeric=False):
+def main(style='words'):
     real, a, b, x, y = rand(), rand(), rand(), rand(), rand()
     c, z = xor(xor(real, a), b), xor(xor(real, x), y)
     assert real == xor(a, xor(b, c)) and real == xor(x, xor(y, z)), 'Bad Keys'
     print_keys(['a', 'b', 'c', 'x', 'y', 'z', 'real'], [a, b, c, x, y, z, real],
-               numeric=numeric)
+               style=style)
     print('''Recovery proof: p1: ax, p2: by, p3: cx, p4: bz, p5: az
         p123: abc, p124: xyz, p125: xyz, p234: yxz, p235: bca, p345: cba''')
     while True:
-      merge_keys(numeric=numeric)
+      merge_keys(style=style)
 
 if __name__ == '__main__':
   try: input = raw_input
   except NameError: pass
-  main(numeric=False)
+  main(style='words')
